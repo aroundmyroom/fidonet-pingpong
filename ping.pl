@@ -9,7 +9,7 @@
 # Deon George (3:633/509).
 #
 # 1st november 2024:
-# Slightly modify by Dennis Slagers (2:280/206) after Jay Harris
+# Slightly modify by Dennis Slagers (2:280/2060) after Jay Harris
 # made his script available to me.
 # Modified: information about the filter.pl and example
 # as the @INC part is always a hassle

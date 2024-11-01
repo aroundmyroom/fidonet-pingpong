@@ -1,4 +1,4 @@
-# fidonet-pingpong
+# Fidonet  PingPong
 Script for PING and TRACE within FIDONET
 
 After 25 years I am back in fidonet. Old times Galore .. you are getting old Papa !

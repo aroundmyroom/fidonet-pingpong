@@ -16,8 +16,7 @@ Copyright notice
  (c) 2006 Grumbler\
  (c) 2010 Grumbler
 
- Modified by Jay Harris (1:229/664) with thanks to
- Deon George (3:633/509).
+ Modified by Jay Harris (1:229/664) with thanks to Deon George (3:633/509).
 
- 1st november 2024:
+ 1st november 2024:\
  Slightly modify by Dennis Slagers (2:280/206) after Jay Harris

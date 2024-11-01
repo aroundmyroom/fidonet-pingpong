@@ -19,4 +19,4 @@ Copyright notice
  Modified by Jay Harris (1:229/664) with thanks to Deon George (3:633/509).
 
  1st november 2024:\
- Slightly modify by Dennis Slagers (2:280/206) after Jay Harris
+ Slightly modify by Dennis Slagers (2:280/2060) after Jay Harris

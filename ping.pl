@@ -46,10 +46,15 @@ sub w_log {
 my $flagfile = '/var/spool/ftn/flags/netscan'; # Flag file for new netmail
 my $myname   = 'Ping Robot'; # From: name in PONG reply
 my $origline = 'You sent a ping! That did hurt, I will tell mamma!'; # Origin Line
-my @myaddr   = @{ $config{addr} };
+my @myaddr   = @{ $config{addr} }; # Ensure %config is defined in the context where this is used
 my $myaddr   = $myaddr[0];
 
 sub pong() {
+    my ($toaddr, $fromaddr, $fromname, $toname, $subject, $area, $text, $date); # Declare variables
+    my $pngtr;
+    my $pngsub;
+    my $msgtext = "";
+
     if ( grep { $_ eq $toaddr } @myaddr ) {
         # Respond from the address ping was sent to
         $myaddr = $toaddr;
@@ -60,11 +65,11 @@ sub pong() {
         $pngsub = "TRACE:";
 
         # Improved zone matching logic
-        ($fromzone) = $fromaddr =~ /^(\d+):/;
+        my ($fromzone) = $fromaddr =~ /^(\d+):/;
         if ( defined $fromzone && $fromzone !~ /^[1234]$/ ) {
             # Iterate over system addresses to find matching zone
             foreach (@myaddr) {
-                ($myzone) = $_ =~ /^(\d+):/;
+                my ($myzone) = $_ =~ /^(\d+):/;
                 if ( defined $myzone && $myzone == $fromzone ) {
                     $myaddr = $_;
                     last;
@@ -72,8 +77,6 @@ sub pong() {
             }
         }
     }
-
-    my $msgtext = "";
 
     # Check if message is netmail & addressed to PING (case insensitive)
     if ((length($area) == 0) && (uc($toname) eq "PING") && (uc($fromname) ne "PING")) {
@@ -86,14 +89,14 @@ sub pong() {
         }
 
         # Set tearline to current uptime
-        $report_tearline = `uptime -p | tr -d "\n"`;
+        my $report_tearline = `uptime -p | tr -d "\n"`;
 
         # $text contains original message and must be left as is
         $msgtext = $text;
 
         # Get MSGID (if any) for REPLY: kludge
         if ( $msgtext =~ /\r\x01MSGID:\s*(.*?)\r/ ) {
-            $RPLY = $1;
+            my $RPLY = $1;
         }
 
         # Invalidate control stuff
@@ -115,11 +118,11 @@ sub pong() {
           . " * Origin: $origline ($myaddr)\r";
 
         # Get current timezone
-        $TZ = strftime( "%z", localtime() );
+        my $TZ = strftime( "%z", localtime() );
         $TZ =~ s/^\+//;
 
         # Generate MSGID for PONG reply
-        $MID = `gnmsgid`;
+        my $MID = `gnmsgid`;
 
         # Prepend kludge lines
         if ( $RPLY eq "" ) {

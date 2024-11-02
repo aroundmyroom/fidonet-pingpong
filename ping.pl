@@ -8,12 +8,6 @@
 # Modified by Jay Harris (1:229/664) with thanks to
 # Deon George (3:633/509).
 #
-# 1st November 2024:
-# Slightly modified by Dennis Slagers (2:280/2060) after Jay Harris
-# made his script available to me.
-# Adjusted information about filter.pl and example due to @INC issues.
-# Improved zone matching logic and regular expressions for zone format matching.
-#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -24,53 +18,49 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# Ensure correct user:group permissions (ftn:ftn).
-#
-# Insert into config (for Fidian setup: /etc/husky/config):
-# hptperlfile /etc/husky/filter.pl
-# Place filter.pl in /etc/husky and set the @PATH with `use lib`.
-#
-# --- filter.pl example ---
-# use lib '/etc/husky';
+# Insert into config:
+# hptperlfile /home/fido/lib/filter.pl
+# and place to filter.pl some like this:
 # BEGIN { require "pong.pl"; }
-# sub filter {
+# sub filter{
 #   &pong;
 # }
-# --- end example ---
+#
 
 sub w_log {
     my ($type, $message) = @_;
-    print "[$type] $message\n";  # Adjust logging as needed
+    print "[$type] $message\n";  # Adjust as needed
 }
 
-my $flagfile = '/var/spool/ftn/flags/netscan'; # Flag file for new netmail
-my $myname   = 'Ping Robot'; # From: name in PONG reply
+
+my $flagfile = '/var/spool/ftn/flags/netscan'; # Flag file for indicating new netmail
+my $myname   = 'AroundMyRooms Ping Robot'; # From: name in PONG reply
 my $origline = 'You sent a ping! That did hurt, I will tell mamma!'; # Origin Line
-my @myaddr   = @{ $config{addr} }; # Ensure %config is defined in the context where this is used
+my @myaddr   = @{ $config{addr} };
 my $myaddr   = $myaddr[0];
 
 sub pong() {
-    my ($toaddr, $fromaddr, $fromname, $toname, $subject, $area, $text, $date); # Declare variables
-    my $pngtr;
-    my $pngsub;
-    my $msgtext = "";
-
     if ( grep { $_ eq $toaddr } @myaddr ) {
-        # Respond from the address ping was sent to
+        #Respond from the address ping was sent to
         $myaddr = $toaddr;
-        $pngtr  = "Your PING request has been received at its final destination:";
+        $pngtr = "Your PING request has been received at its final destination:";
         $pngsub = "PONG:";
-    } else {
-        $pngtr  = "Your in-transit PING was received and routed onward:";
+    }
+    else {
+        $pngtr  = "Your in transit PING was received and routed onward:";
         $pngsub = "TRACE:";
 
-        # Improved zone matching logic
-        my ($fromzone) = $fromaddr =~ /^(\d+):/;
-        if ( defined $fromzone && $fromzone !~ /^[1234]$/ ) {
-            # Iterate over system addresses to find matching zone
+        #Get zone of sender
+        while ( $fromaddr =~ /^(.*?):/g ) {
+            $fromzone = $1;
+        }
+        #If othernet, match sender's zone with an address on this system
+        if ( $fromzone !~ /\d\{1,2,3,4\}?/ ) {
             foreach (@myaddr) {
-                my ($myzone) = $_ =~ /^(\d+):/;
-                if ( defined $myzone && $myzone == $fromzone ) {
+                while ( $_ =~ /^(.*?):/g ) {
+                    $myzone = $1;
+                }
+                if ( $myzone == $fromzone ) {
                     $myaddr = $_;
                     last;
                 }
@@ -78,10 +68,12 @@ sub pong() {
         }
     }
 
-    # Check if message is netmail & addressed to PING (case insensitive)
-    if ((length($area) == 0) && (uc($toname) eq "PING") && (uc($fromname) ne "PING")) {
+    my $msgtext = "";
 
-        w_log('C', "Perl(): Make PONG to PING request: area=" . ((length($area) == 0) ? "netmail" : $area) . "; toname=$toname; toaddr=$toaddr; fromname=$fromname; fromaddr=$fromaddr");
+  # Check if message is netmail & addressed to PING (case insensitive)
+     if ((length($area)==0) && (uc $toname eq "PING") && (uc $fromname ne "PING")) {
+
+        w_log('C',"Perl(): Make PONG to PING request: area=".((length($area)==0)? "netmail":$area)."; toname=$toname; toaddr=$toaddr fromname=$fromname; fromaddr=$fromaddr" );
 
         # Kill ping netmails addressed to this system
         if ( grep { $_ eq $toaddr } @myaddr ) {
@@ -89,15 +81,13 @@ sub pong() {
         }
 
         # Set tearline to current uptime
-        my $report_tearline = `uptime -p | tr -d "\n"`;
+        $report_tearline = `uptime -p | tr -d "\n"`;
 
         # $text contains original message and must be left as is
         $msgtext = $text;
 
         # Get MSGID (if any) for REPLY: kludge
-        if ( $msgtext =~ /\r\x01MSGID:\s*(.*?)\r/ ) {
-            my $RPLY = $1;
-        }
+        ($RPLY) = $msgtext =~ /\x01MSGID:\s*(.*?)\r/;
 
         # Invalidate control stuff
         $msgtext =~ s/\x01/@/g;
@@ -118,29 +108,27 @@ sub pong() {
           . " * Origin: $origline ($myaddr)\r";
 
         # Get current timezone
-        my $TZ = strftime( "%z", localtime() );
+        $TZ = strftime( "%z", localtime() );
         $TZ =~ s/^\+//;
 
         # Generate MSGID for PONG reply
-        my $MID = `gnmsgid`;
+        $MID = `gnmsgid`;
 
         # Prepend kludge lines
         if ( $RPLY eq "" ) {
-            $msgtext = "\x01MSGID: $myaddr $MID\r\x01TZUTC: $TZ\r" . $msgtext;
-        } else {
-            $msgtext = "\x01MSGID: $myaddr $MID\r\x01REPLY: $RPLY\r\x01TZUTC: $TZ\r" . $msgtext;
+            $msgtext = "\x01MSGID: $myaddr $MID\r\x01TZUTC: $TZ\r".$msgtext;
+        }
+        else {
+            $msgtext = "\x01MSGID: $myaddr $MID\r\x01REPLY: $RPLY\r\x01TZUTC: $TZ\r".$msgtext;
         }
 
         # Post message
-        my $err = putMsgInArea($area, $myname, $fromname, $myaddr, $fromaddr, "$pngsub " . $subject, "", "Uns Loc Pvt K/s", $msgtext, 3);
-        if ( defined($err) ) { 
-            w_log('A', "Perl(): Can't make new message: $err"); 
-        } else { 
-            open( FLAG, ">>$flagfile" ) && close(FLAG); 
-        }
+        my $err = putMsgInArea($area,$myname,$fromname,$myaddr,$fromaddr,"$pngsub ".$subject,"","Uns Loc Pvt K/s",$msgtext,3);
+        if( defined($err) ){ w_log('A',"Perl(): Can't make new message: $err"); }
+        else{ open( FLAG, ">>$flagfile" ) && close(FLAG); }
     }
     return "";
 }
 
-w_log('U', "");
+w_log( 'U', "" );
 1;

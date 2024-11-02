@@ -51,19 +51,15 @@ sub pong() {
         $pngsub = "TRACE:";
 
         #Get zone of sender
-        while ( $fromaddr =~ /^(.*?):/g ) {
-            $fromzone = $1;
+        ($fromzone) = $fromaddr =~ /^(.*?)(?=:)/;
         }
         #If othernet, match sender's zone with an address on this system
-        if ( $fromzone !~ /\d\{1,2,3,4\}?/ ) {
+        if ( $fromzone !~ /^[1234]$/ ) {
             foreach (@myaddr) {
-                while ( $_ =~ /^(.*?):/g ) {
-                    $myzone = $1;
-                }
+                ($myzone) = $_ =~ /^(.*?)(?=:)/;
                 if ( $myzone == $fromzone ) {
                     $myaddr = $_;
                     last;
-                }
             }
         }
     }
@@ -87,7 +83,9 @@ sub pong() {
         $msgtext = $text;
 
         # Get MSGID (if any) for REPLY: kludge
-        ($RPLY) = $msgtext =~ /\x01MSGID:\s*(.*?)\r/;
+         if ( $msgtext =~ /\r\x01MSGID:\s*(.*?)\r/ ) {
+            $RPLY = $1;
+        }
 
         # Invalidate control stuff
         $msgtext =~ s/\x01/@/g;

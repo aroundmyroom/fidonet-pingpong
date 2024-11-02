@@ -76,9 +76,9 @@ sub pong() {
     my $msgtext = "";
 
     # Check if message is netmail & addressed to PING (case insensitive)
-    if ((length($area) == 0) && (uc $toname eq "PING") && (uc $fromname ne "PING")) {
+    if ((length($area) == 0) && (uc($toname) eq "PING") && (uc($fromname) ne "PING")) {
 
-        w_log('C', "Perl(): Make PONG to PING request: area=" . ((length($area) == 0) ? "netmail" : $area) . "; toname=$toname; toaddr=$toaddr fromname=$fromname; fromaddr=$fromaddr");
+        w_log('C', "Perl(): Make PONG to PING request: area=" . ((length($area) == 0) ? "netmail" : $area) . "; toname=$toname; toaddr=$toaddr; fromname=$fromname; fromaddr=$fromaddr");
 
         # Kill ping netmails addressed to this system
         if ( grep { $_ eq $toaddr } @myaddr ) {

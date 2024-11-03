@@ -73,6 +73,10 @@ sub pong() {
 
         # Kill ping netmails addressed to this system
         if ( grep { $_ eq $toaddr } @myaddr ) {
+        #if you want to keep the original message before the netmail is killed, add this line, make sure the LOCAL area exist
+        putMsgInArea('PING', $fromname, $toname, $fromaddr, $toaddr, $subject, $date, $attr, $text, 0);
+        # below setting will set the kill to the message
+
             $kill = 1;
         }
 

@@ -1,3 +1,31 @@
+#
+# Ping-pong robot for HPT. Designed accordingly FTS-5001.002
+# (c) 2006 Gremlin
+# (c) 2006 Grumbler
+# (c) 2010 Grumbler
+#
+# Modified by Jay Harris (1:229/664) with thanks to
+# Deon George (3:633/509).
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# Insert into config:
+# hptperlfile /home/fido/lib/filter.pl
+# and place to filter.pl some like this:
+# BEGIN { require "pong.pl"; }
+# sub filter{
+#   &pong;
+# }
+#
+
 use POSIX qw(strftime);
 
 sub w_log {

@@ -43,7 +43,7 @@ sub w_log {
 
     # Open the log file in append mode; create it if it doesn’t exist
     open my $fh, '>>', $logfile or die "Could not open log file '$logfile': $!";
-    
+
     # Add timestamp to the log message
     print $fh "[$timestamp] [$type] $message\n";
     close $fh;
@@ -57,6 +57,7 @@ my @myaddr   = @{ $config{addr} };
 my $myaddr   = $myaddr[0];
 
 sub pong {
+ if ( length($area) == 0 && uc($toname) eq "PING" && uc($fromname) ne "PING" ) {
     if ( grep { $_ eq $toaddr } @myaddr ) {
         # Respond from the address ping was sent to
         $myaddr = $toaddr;
@@ -79,9 +80,10 @@ sub pong {
                 $myaddr = $_;
                 last;
             }
-        }
-    }
+         }
+      }
 
+   }
     my $msgtext = "";
 
     # Check if message is netmail & addressed to PING (case insensitive)
@@ -149,5 +151,5 @@ sub pong {
     return "";
 }
 
-w_log( 'U', "" );
+# w_log( 'U', "" );
 1;

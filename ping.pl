@@ -51,14 +51,14 @@ sub w_log {
 
 my ($file)   = __FILE__ =~ /([^\/]+)$/; # Get filename of script without path
 my $flagfile = '/var/spool/ftn/flags/netscan'; # Flag file for indicating new netmail
-my $myname   = 'AroundMyRooms Ping Robot'; # From: name in PONG reply
+my $myname   = 'AroundMyRooms Ping Robot'; # From: name in PONG reply. DO NOT use PING as reply name
 my $origline = 'You sent a ping! That did hurt, I will tell mamma!'; # Origin Line
 my @myaddr   = @{ $config{addr} };
 my $myaddr   = $myaddr[0];
 
 sub pong {
- if ( length($area) == 0 && uc($toname) eq "PING" && uc($fromname) ne "PING" ) {
-    if ( grep { $_ eq $toaddr } @myaddr ) {
+ if ( length($area) == 0 && uc($toname) eq "PING" ) {
+   if ( grep { $_ eq $toaddr } @myaddr ) {
         # Respond from the address ping was sent to
         $myaddr = $toaddr;
         $pngtr = "Your PING request has been received at its final destination:";
@@ -87,17 +87,15 @@ sub pong {
     my $msgtext = "";
 
     # Check if message is netmail & addressed to PING (case insensitive)
-    if ((length($area)==0) && (uc $toname eq "PING") && (uc $fromname ne "PING")) {
 
         w_log('C', "$file: Make $pngsub to PING request: area=".((length($area)==0)? "netmail":$area)."; toname=$toname; toaddr=$toaddr fromname=$fromname; fromaddr=$fromaddr" );
 
-        # Kill ping netmails addressed to this system
-        if ( grep { $_ eq $toaddr } @myaddr ) {
+        # Kill ping netmails addressed to this system also copy the mail to area PING before killing it.
+        if ( uc($toname) eq "PING" && grep { $_ eq $toaddr } @myaddr ) {
             # If you want to keep the original message before the netmail is killed, add this line
             putMsgInArea('PING', $fromname, $toname, $fromaddr, $toaddr, $subject, $date, $attr, $text, 0);
             # Below setting will set the kill to the message
             $kill = 1;
-        }
 
         # Set tearline to current uptime
         $report_tearline = `uptime -p | tr -d "\n"`;
@@ -108,7 +106,7 @@ sub pong {
         # Get MSGID (if any) for REPLY: kludge
         if ( $msgtext =~ /\r\x01MSGID:\s*(.*?)\r/ ) {
             $RPLY = $1;
-        }
+if ( uc($toname) eq "PING" && grep { $_ eq $toaddr } @myaddr ) {        }
 
         # Invalidate control stuff
         $msgtext =~ s/\x01/@/g;
@@ -151,5 +149,4 @@ sub pong {
     return "";
 }
 
-# w_log( 'U', "" );
 1;

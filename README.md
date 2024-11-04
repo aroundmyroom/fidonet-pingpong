@@ -18,5 +18,7 @@ Copyright notice
 
  Modified by Jay Harris (1:229/664) with thanks to Deon George (3:633/509).
 
- 1st november 2024:\
- Slightly modify by Dennis Slagers (2:280/2060) after Jay Harris
+ 1st to 4th november 2024:\
+ modified by Dennis Slagers (2:280/2060) with updates of Jay Harris
+
+this version is optimized for used with FIDIAN 

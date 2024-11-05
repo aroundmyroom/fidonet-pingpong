@@ -25,7 +25,23 @@
 #   &pong;
 # }
 #
-
+# What do you need for fidian?
+#
+# touch /var/log/husky/ping.log
+# chown ftn:ftn /var/log/husky/ping.log
+#
+# add to your /etc/husky/areas file a local folder PING
+# like:
+# localarea   PING          /var/spool/ftn/msgbase/ping          -b Jam
+#
+#
+# with this you can use this script
+# to check if script is valid: perl /etc/husky/filter.pl
+# it should not generate any output or error. If so, the script is not ok.
+#
+# Note: this script allows the from address also to be PING
+# but do not reply with PING
+#
 use POSIX qw(strftime);
 
 sub w_log {

@@ -114,11 +114,12 @@ sub pong {
 
             $msgtext =
                 "$pngtr\r\r"
-              . "==== begin of request body ====\r\r"
+              . "==== Begin of request body ====\r\r"
               . "From: $fromname ($fromaddr)\r"
               . "  To: $toname ($toaddr)\r"
               . "Subj: $subject\r"
               . "Date: $date\r\r"
+              . "==== Message text including kludges ====\r\r"
               . "$msgtext\r"
               . "===== end of request body =====\r\r"
               . "--- $report_tearline\r"
@@ -147,5 +148,7 @@ sub pong {
     }
     return "";
 }
+
+1;
 
 1;

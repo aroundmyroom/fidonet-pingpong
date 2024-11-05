@@ -43,6 +43,7 @@
 # but do not reply with PING
 #
 use POSIX qw(strftime);
+use Time::Piece;
 
 sub w_log {
     my ($type, $message) = @_;
@@ -56,6 +57,7 @@ sub w_log {
 
     # Format the current date and time
     my $timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime);
+
 
     # Open the log file in append mode; create it if it doesn’t exist
     open my $fh, '>>', $logfile or die "Could not open log file '$logfile': $!";
@@ -71,6 +73,7 @@ my $myname   = 'AroundMyRooms Ping Robot'; # From: name in PONG reply. DO NOT us
 my $origline = 'You sent a ping! That did hurt, I will tell mamma!'; # Origin Line
 my @myaddr   = @{ $config{addr} };
 my $myaddr   = $myaddr[0];
+
 
 sub pong {
     if ( length($area) == 0 && uc($toname) eq "PING" ) {
@@ -134,7 +137,7 @@ sub pong {
               . "From: $fromname ($fromaddr)\r"
               . "  To: $toname ($toaddr)\r"
               . "Subj: $subject\r"
-              . "Date: $date\r\r"
+              . "Date: $mydate". Time::Piece->strptime($date, "%d %b %y %H:%M:%S")->strftime("%Y-%m-%d %H:%M:%S") . "\r"
               . "==== Message text including kludges ====\r\r"
               . "$msgtext\r"
               . "===== end of request body =====\r\r"

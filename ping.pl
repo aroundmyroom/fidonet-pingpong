@@ -137,7 +137,7 @@ sub pong {
               . "From: $fromname ($fromaddr)\r"
               . "  To: $toname ($toaddr)\r"
               . "Subj: $subject\r"
-              . "Date: $mydate". Time::Piece->strptime($date, "%d %b %y %H:%M:%S")->strftime("%Y-%m-%d %H:%M:%S") . "\r"
+              . "Date: " . Time::Piece->strptime($date, "%d %b %y %H:%M:%S")->strftime("%Y-%m-%d %H:%M:%S") . "\r"
               . "==== Message text including kludges ====\r\r"
               . "$msgtext\r"
               . "===== end of request body =====\r\r"

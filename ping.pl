@@ -58,7 +58,6 @@ sub w_log {
     # Format the current date and time
     my $timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime);
 
-
     # Open the log file in append mode; create it if it doesn’t exist
     open my $fh, '>>', $logfile or die "Could not open log file '$logfile': $!";
 
@@ -74,28 +73,34 @@ my $origline = 'You sent a ping! That did hurt, I will tell mamma!'; # Origin Li
 my @myaddr   = @{ $config{addr} };
 my $myaddr   = $myaddr[0];
 
-
 sub pong {
-    if ( length($area) == 0 && uc($toname) eq "PING" ) {
-        if ( grep { $_ eq $toaddr } @myaddr ) {
+    # Check for PING or PINGC (case insensitive)
+    if (length($area) == 0 && uc($toname) =~ /^PING(C)?$/) {
+        my $is_pingc = uc($toname) eq "PINGC";
+        my ($pngtr, $pngsub);
+
+        if (grep { $_ eq $toaddr } @myaddr) {
             # Respond from the address ping was sent to
             $myaddr = $toaddr;
-            $pngtr = "Your PING request has been received at its final destination:";
-            $pngsub = "PONG";
-        }
-        else {
-            $pngtr  = "Your in transit PING was received and routed onward:";
-            $pngsub = "TRACE";
+            $pngtr = $is_pingc
+                ? "Your PINGC request has been received at its final destination:"
+                : "Your PING request has been received at its final destination:";
+            $pngsub = $is_pingc ? "PONGC" : "PONG";
+        } else {
+            $pngtr = $is_pingc
+                ? "Your in transit PINGC was received and routed onward:"
+                : "Your in transit PING was received and routed onward:";
+            $pngsub = $is_pingc ? "TRACEC" : "TRACE";
 
             # Get zone of sender
             ($fromzone) = $fromaddr =~ /^(.*?)(?=:)/;
         }
 
         # If othernet, match sender's zone with an address on this system
-        if ( $fromzone !~ /^[1234]$/ ) {
+        if ($fromzone !~ /^[1234]$/) {
             foreach (@myaddr) {
                 ($myzone) = $_ =~ /^(.*?)(?=:)/;
-                if ( $myzone == $fromzone ) {
+                if ($myzone == $fromzone) {
                     $myaddr = $_;
                     last;
                 }
@@ -103,29 +108,20 @@ sub pong {
         }
 
         my $msgtext = "";
+        w_log('C', "$file: Make $pngsub to PING request: area="
+            . ((length($area) == 0) ? "netmail" : $area)
+            . "; toname=$toname; toaddr=$toaddr; fromname=$fromname; fromaddr=$fromaddr");
 
-        # Check if message is netmail & addressed to PING (case insensitive)
-        w_log('C', "$file: Make $pngsub to PING request: area=".((length($area)==0)? "netmail":$area)."; toname=$toname; toaddr=$toaddr fromname=$fromname; fromaddr=$fromaddr" );
-
-        # Kill ping netmails addressed to this system also copy the mail to area PING before killing it.
-        if ( uc($toname) eq "PING" && grep { $_ eq $toaddr } @myaddr ) {
-            # If you want to keep the original message before the netmail is killed, add this line
+        # Handle message response
+        if (grep { $_ eq $toaddr } @myaddr) {
             putMsgInArea('PING', $fromname, $toname, $fromaddr, $toaddr, $subject, $date, $attr, $text, 0);
-            # Below setting will set the kill to the message
             $kill = 1;
 
             # Set tearline to current uptime
-            $report_tearline = `uptime -p | tr -d "\n"`;
+            my $report_tearline = `uptime -p | tr -d "\\n"`;
 
-            # $text contains original message and must be left as is
+            # Prepare message text
             $msgtext = $text;
-
-            # Get MSGID (if any) for REPLY: kludge
-            if ( $msgtext =~ /\r\x01MSGID:\s*(.*?)\r/ ) {
-                $RPLY = $1;
-            }
-
-            # Invalidate control stuff
             $msgtext =~ s/\x01/@/g;
             $msgtext =~ s/\n/\\x0A/g;
             $msgtext =~ s/\r--- /\r-=- /g;
@@ -137,35 +133,36 @@ sub pong {
               . "From: $fromname ($fromaddr)\r"
               . "  To: $toname ($toaddr)\r"
               . "Subj: $subject\r"
-              . "Date: " . Time::Piece->strptime($date, "%d %b %y %H:%M:%S")->strftime("%Y-%m-%d %H:%M:%S") . "\r"
+              . "Date: " . Time::Piece->strptime($date, "%d %b %y %H:%M:%S")->strftime("%F %T") . "\r\r"
               . "==== Message text including kludges ====\r\r"
               . "$msgtext\r"
               . "===== end of request body =====\r\r"
               . "--- $report_tearline\r"
               . " * Origin: $origline ($myaddr)\r";
 
-            # Get current timezone
-            $TZ = strftime( "%z", localtime() );
+            # Get timezone
+            my $TZ = strftime("%z", localtime());
             $TZ =~ s/^\+//;
 
-            # Generate MSGID for PONG reply
-            $MID = `gnmsgid`;
+            # Generate MSGID
+            my $MID = `gnmsgid`;
+
+            # Determine flags
+            my $direct = ($fromaddr !~ /\./ || $fromaddr =~ /\.0$/)
+                ? "\x01FLAGS DIR IMM\r"
+                : "\x01FLAGS HUB\r";
 
             # Prepend kludge lines
-            if ( $RPLY eq "" ) {
-                $msgtext = "\x01MSGID: $myaddr $MID\r\x01TZUTC: $TZ\r".$msgtext;
-            }
-            else {
-                $msgtext = "\x01MSGID: $myaddr $MID\r\x01REPLY: $RPLY\r\x01TZUTC: $TZ\r".$msgtext;
-            }
+            $msgtext = "\x01MSGID: $myaddr $MID\r\x01TZUTC: $TZ\r" . $direct . $msgtext;
 
             # Post message
-            my $err = putMsgInArea($area,$myname,$fromname,$myaddr,$fromaddr,"$pngsub: ".$subject,"","Uns Loc Pvt K/s",$msgtext,3);
-            if( defined($err) ){ w_log('A',"$file: Unable to make a PONG reply: $err"); }
-            else{ open( FLAG, ">>$flagfile" ) && close(FLAG); }
+            my $err = putMsgInArea($area, $myname, $fromname, $myaddr, $fromaddr, "$pngsub: " . $subject, "", "Uns Loc Pvt K/s", $msgtext, 3);
+            if (defined($err)) {
+                w_log('A', "$file: Unable to make a $pngsub reply: $err");
+            } else {
+                open(my $flag_fh, ">>", $flagfile) && close($flag_fh);
+            }
         }
     }
-    return "";
 }
-
 1;

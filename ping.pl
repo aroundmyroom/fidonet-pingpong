@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 #
 # Ping-pong robot for HPT. Designed accordingly FTS-5001.002
 # (c) 2006 Gremlin
@@ -19,150 +20,125 @@
 #
 # Insert into config:
 # hptperlfile /home/fido/lib/filter.pl
+#
 # and place to filter.pl some like this:
-# BEGIN { require "pong.pl"; }
-# sub filter{
+# BEGIN {
+#   require "pong.pl";
+# }
+#
+# sub filter {
 #   &pong;
 # }
 #
-# What do you need for fidian?
-#
-# touch /var/log/husky/ping.log
-# chown ftn:ftn /var/log/husky/ping.log
-#
-# add to your /etc/husky/areas file a local folder PING
-# like:
-# localarea   PING          /var/spool/ftn/msgbase/ping          -b Jam
-#
-#
-# with this you can use this script
-# to check if script is valid: perl /etc/husky/filter.pl
-# it should not generate any output or error. If so, the script is not ok.
-#
-# Note: this script allows the from address also to be PING
-# but do not reply with PING
-#
-use POSIX qw(strftime);
-use Time::Piece;
-
-sub w_log {
-    my ($type, $message) = @_;
-    my $logfile = '/var/log/husky/ping.log';  # Path to the log file
-
-    # Check if the directory exists; create it if it doesn’t
-    my $logdir = '/var/log/husky';
-    unless (-d $logdir) {
-        mkdir $logdir or die "Could not create directory '$logdir': $!";
-    }
-
-    # Format the current date and time
-    my $timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime);
-
-    # Open the log file in append mode; create it if it doesn’t exist
-    open my $fh, '>>', $logfile or die "Could not open log file '$logfile': $!";
-
-    # Add timestamp to the log message
-    print $fh "[$timestamp] [$type] $message\n";
-    close $fh;
-}
-
 my ($file)   = __FILE__ =~ /([^\/]+)$/; # Get filename of script without path
-my $flagfile = '/var/spool/ftn/flags/netscan'; # Flag file for indicating new netmail
-my $myname   = 'AroundMyRooms Ping Robot'; # From: name in PONG reply. DO NOT use PING as reply name
-my $origline = 'You sent a ping! That did hurt, I will tell mamma!'; # Origin Line
+my $flagfile =  '/home/ubuntu/fido/semaphore/mail.out'; # Flag file for indicating new netmail
+my $myname   = 'Ping Robot'; # From: name in PONG reply. Cannot be 'PING'
+my $origline = 'Northern Realms'; # Origin Line
 my @myaddr   = @{ $config{addr} };
 my $myaddr   = $myaddr[0];
 
-sub pong {
-    # Check for PING or PINGC (case insensitive)
-    if (length($area) == 0 && uc($toname) =~ /^PING(C)?$/) {
-        my $is_pingc = uc($toname) eq "PINGC";
-        my ($pngtr, $pngsub);
+sub pong() {
+    # Do not set $myname to 'PING'
+    if ( uc($myname) eq "PING" ) { die "ERROR: \$myname cannot be PING"; }
 
-        if (grep { $_ eq $toaddr } @myaddr) {
+    # Check if message is netmail & addressed to PING or PINGC (case insensitive)
+    if ( length($area) == 0 && ( uc($toname) eq "PING" || uc($toname) eq "PINGC" ) && uc($fromname) ne "PING" ) {
+        my $msgtext = "";
+        my $rply    = "";
+
+        if ( grep { $_ eq $toaddr } @myaddr ) {
             # Respond from the address ping was sent to
             $myaddr = $toaddr;
-            $pngtr = $is_pingc
-                ? "Your PINGC request has been received at its final destination:"
-                : "Your PING request has been received at its final destination:";
-            $pngsub = $is_pingc ? "PONGC" : "PONG";
-        } else {
-            $pngtr = $is_pingc
-                ? "Your in transit PINGC was received and routed onward:"
-                : "Your in transit PING was received and routed onward:";
-            $pngsub = $is_pingc ? "TRACEC" : "TRACE";
+
+            if ( uc($toname) eq "PING" ) {
+                $pngtr  = "Your PING request has been received at its final destination:";
+                $pngsub = "PONG";
+            } elsif ( uc($toname) eq "PINGC" ) {
+                $pngtr  = "Your PINGC request has been received at its final destination:";
+                $pngsub = "PONGC";
+                # If $fromaddr is not a point then send direct
+                if ( $fromaddr !~ /\./ || $fromaddr =~ /\.0$/ ) {
+                    $direct = "\x01FLAGS DIR IMM\r";
+                }
+            }
+        }
+        else {
+            $pngtr  = "Your in transit PING was received and routed onward:";
+            $pngsub = "TRACE";
 
             # Get zone of sender
             ($fromzone) = $fromaddr =~ /^(.*?)(?=:)/;
-        }
 
-        # If othernet, match sender's zone with an address on this system
-        if ($fromzone !~ /^[1234]$/) {
-            foreach (@myaddr) {
-                ($myzone) = $_ =~ /^(.*?)(?=:)/;
-                if ($myzone == $fromzone) {
-                    $myaddr = $_;
-                    last;
+            # If othernet, match sender's zone with an address on this system
+            if ( $fromzone !~ /^[1234]$/ ) {
+                foreach (@myaddr) {
+                    ($myzone) = $_ =~ /^(.*?)(?=:)/;
+                    if ( $myzone == $fromzone ) {
+                        $myaddr = $_;
+                        last;
+                    }
                 }
             }
         }
 
-        my $msgtext = "";
-        w_log('C', "$file: Make $pngsub to PING request: area="
-            . ((length($area) == 0) ? "netmail" : $area)
-            . "; toname=$toname; toaddr=$toaddr; fromname=$fromname; fromaddr=$fromaddr");
+        w_log( 'C',"$file: Make $pngsub to PING request: area=".((length($area) == 0) ? "netmail" : $area)."; toname=$toname; toaddr=$toaddr; fromname=$fromname; fromaddr=$fromaddr" );
 
-        # Handle message response
-        if (grep { $_ eq $toaddr } @myaddr) {
-            putMsgInArea('PING', $fromname, $toname, $fromaddr, $toaddr, $subject, $date, $attr, $text, 0);
+        # Kill ping netmails addressed to this system
+        if ( grep { $_ eq $toaddr } @myaddr ) {
             $kill = 1;
-
-            # Set tearline to current uptime
-            my $report_tearline = `uptime -p | tr -d "\\n"`;
-
-            # Prepare message text
-            $msgtext = $text;
-            $msgtext =~ s/\x01/@/g;
-            $msgtext =~ s/\n/\\x0A/g;
-            $msgtext =~ s/\r--- /\r-=- /g;
-            $msgtext =~ s/\r\ \* Origin: /\r + Origin: /g;
-
-            $msgtext =
-                "$pngtr\r\r"
-              . "==== Begin of request body ====\r\r"
-              . "From: $fromname ($fromaddr)\r"
-              . "  To: $toname ($toaddr)\r"
-              . "Subj: $subject\r"
-              . "Date: " . Time::Piece->strptime($date, "%d %b %y %H:%M:%S")->strftime("%F %T") . "\r\r"
-              . "==== Message text including kludges ====\r\r"
-              . "$msgtext\r"
-              . "===== end of request body =====\r\r"
-              . "--- $report_tearline\r"
-              . " * Origin: $origline ($myaddr)\r";
-
-            # Get timezone
-            my $TZ = strftime("%z", localtime());
-            $TZ =~ s/^\+//;
-
-            # Generate MSGID
-            my $MID = `gnmsgid`;
-
-            # Determine flags
-            my $direct = ($fromaddr !~ /\./ || $fromaddr =~ /\.0$/)
-                ? "\x01FLAGS DIR IMM\r"
-                : "\x01FLAGS HUB\r";
-
-            # Prepend kludge lines
-            $msgtext = "\x01MSGID: $myaddr $MID\r\x01TZUTC: $TZ\r" . $direct . $msgtext;
-
-            # Post message
-            my $err = putMsgInArea($area, $myname, $fromname, $myaddr, $fromaddr, "$pngsub: " . $subject, "", "Uns Loc Pvt K/s", $msgtext, 3);
-            if (defined($err)) {
-                w_log('A', "$file: Unable to make a $pngsub reply: $err");
-            } else {
-                open(my $flag_fh, ">>", $flagfile) && close($flag_fh);
-            }
         }
+
+        # $text contains original message and must be left as is
+        $msgtext = $text;
+
+        # Get sender's MSGID (if any) for REPLY kludge
+        if ( $msgtext =~ /\r\x01MSGID:\s*(.*?)\r/ ) {
+            $rply = $1;
+        }
+
+        # Set tearline to current uptime
+        $report_tearline = `uptime -p | tr -d "\n"`;
+
+        # Invalidate control stuff
+        $msgtext =~ s/\x01/@/g;
+        $msgtext =~ s/\n/\\x0A/g;
+        $msgtext =~ s/\r--- /\r-=- /g;
+        $msgtext =~ s/\r\ \* Origin: /\r + Origin: /g;
+
+        $msgtext =
+            "$pngtr\r\r"
+          . "==== start of request body ====\r\r"
+          . "From: $fromname ($fromaddr)\r"
+          . "  To: $toname ($toaddr)\r"
+          . "Subj: $subject\r"
+          . "Date: $date\r\r"
+          . "$msgtext\r"
+          . "===== end of request body =====\r\r"
+          . "--- $report_tearline\r"
+          . " * Origin: $origline ($myaddr)\r";
+
+        # Generate MSGID for our PONG reply
+        $mid = `gnmsgid`;
+
+        # Get current timezone
+        $tz = strftime( "%z", localtime() );
+        $tz =~ s/^\+//;
+
+        # Prepend kludge lines
+        if ( $rply eq "" ) {
+            $msgtext = "\x01MSGID: $myaddr $mid\r\x01TZUTC: $tz\r".$direct.$msgtext;
+        }
+        else {
+            $msgtext = "\x01MSGID: $myaddr $mid\r\x01REPLY: $rply\r\x01TZUTC: $tz\r".$direct.$msgtext;
+        }
+
+        # Post message
+        my $err = putMsgInArea($area,$myname,$fromname,$myaddr,$fromaddr,"$pngsub: ".$subject,"","Uns Loc Pvt K/s",$msgtext,3);
+        if ( defined($err) ) { w_log( 'A', "$file: Unable to make PONG reply: $err" ); }
+        else { open( FLAG, ">>$flagfile" ) && close(FLAG); }
     }
+    return "";
 }
+
+w_log( 'U', "" );
 1;
